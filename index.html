@@ -196,9 +196,132 @@
     text-transform:uppercase;
   }
 
+  /* ============ NÚT BẬT/TẮT NHẠC ============ */
+  #musicToggle{
+    position:fixed;
+    bottom:22px;
+    left:22px;
+    z-index:70;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 18px 10px 14px;
+    background:linear-gradient(180deg, rgba(30, 20, 50, .85) 0%, rgba(15, 8, 30, .9) 100%);
+    border:1px solid rgba(255, 217, 138, .45);
+    border-radius:999px;
+    cursor:pointer;
+    color:var(--gold-soft);
+    font-family:'Be Vietnam Pro', sans-serif;
+    font-size:11.5px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    font-weight:600;
+    box-shadow:
+      0 4px 20px rgba(0, 0, 0, .5),
+      0 0 24px rgba(255, 200, 120, .18),
+      inset 0 1px 0 rgba(255, 255, 255, .08);
+    transition:all .35s ease;
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+    animation:musicBtnIn 1.4s cubic-bezier(.2,.8,.3,1) 2s both;
+  }
+  #musicToggle:hover{
+    border-color:rgba(255, 217, 138, .9);
+    color:#fff8e6;
+    box-shadow:
+      0 6px 26px rgba(0, 0, 0, .6),
+      0 0 36px rgba(255, 200, 120, .45),
+      inset 0 1px 0 rgba(255, 255, 255, .15);
+    transform:translateY(-2px);
+  }
+  #musicToggle:active{
+    transform:translateY(0);
+  }
+
+  .music-icon{
+    width:22px;
+    height:22px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #fff2c8 0%, var(--gold) 45%, #b8862c 100%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:11px;
+    color:#3a2410;
+    box-shadow:
+      0 0 10px rgba(255, 200, 120, .7),
+      inset 0 -2px 3px rgba(120, 60, 0, .35);
+    position:relative;
+    flex-shrink:0;
+  }
+  .music-icon::after{
+    content:'';
+    position:absolute;
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:#2a1608;
+    box-shadow:inset 0 0 2px rgba(0,0,0,.6);
+  }
+  #musicToggle.playing .music-icon{
+    animation:spinDisc 3.5s linear infinite;
+  }
+  @keyframes spinDisc{
+    to{ transform:rotate(360deg); }
+  }
+
+  .music-waves{
+    display:none;
+    align-items:flex-end;
+    gap:2px;
+    height:14px;
+  }
+  #musicToggle.playing .music-waves{
+    display:flex;
+  }
+  #musicToggle.playing .music-note{
+    display:none;
+  }
+  .music-waves span{
+    display:block;
+    width:2.5px;
+    background:var(--gold);
+    border-radius:2px;
+    box-shadow:0 0 6px rgba(255, 217, 138, .8);
+    animation:waveBar 1s ease-in-out infinite;
+  }
+  .music-waves span:nth-child(1){ height:6px;  animation-delay:0s; }
+  .music-waves span:nth-child(2){ height:13px; animation-delay:.15s; }
+  .music-waves span:nth-child(3){ height:9px;  animation-delay:.3s; }
+  .music-waves span:nth-child(4){ height:14px; animation-delay:.45s; }
+  .music-waves span:nth-child(5){ height:7px;  animation-delay:.6s; }
+
+  @keyframes waveBar{
+    0%,100%{ transform:scaleY(.4); opacity:.6; }
+    50%{ transform:scaleY(1); opacity:1; }
+  }
+
+  .music-note{
+    font-size:14px;
+    color:var(--gold);
+    filter:drop-shadow(0 0 6px rgba(255, 217, 138, .9));
+  }
+
+  @keyframes musicBtnIn{
+    from{ opacity:0; transform:translateY(20px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
   @media (max-width: 560px){
     .hud-top h1{ letter-spacing:.03em; }
     .message{ line-height:1.7; }
+    #musicToggle{
+      bottom:16px;
+      left:16px;
+      padding:8px 14px 8px 10px;
+      font-size:10px;
+    }
+    .music-icon{ width:18px; height:18px; font-size:9px; }
   }
 
    /* ============ THƯ TRUNG THU ============ */
@@ -488,6 +611,18 @@
 
   <canvas id="scene"></canvas>
   <div class="vignette"></div>
+
+  <!-- ============ NHẠC NỀN YOUTUBE ============ -->
+  <div id="youtube-audio-player" style="position:fixed; width:0; height:0; opacity:0; pointer-events:none; left:-9999px;"></div>
+
+  <button id="musicToggle" type="button" aria-label="Bật tắt nhạc nền">
+    <span class="music-icon"></span>
+    <span class="music-note">♪</span>
+    <span class="music-waves">
+      <span></span><span></span><span></span><span></span><span></span>
+    </span>
+    <span id="musicLabel">Bật nhạc</span>
+  </button>
 
   <div class="overlay">
     <header class="hud-top">
@@ -2129,6 +2264,83 @@ window.addEventListener('touchend', function(e) {
     console.error(err);
     showError('Lỗi: ' + err.message);
   }
+  </script>
+
+  <!-- ============================================================
+       NHẠC NỀN YOUTUBE - "Your Smile" (không lời chill)
+       Video ID: _NCJe8VB_b4
+       ============================================================ -->
+  <script>
+    (function () {
+      var player = null;
+      var isPlaying = false;
+      var musicReady = false;
+      var toggleBtn = document.getElementById('musicToggle');
+      var musicLabel = document.getElementById('musicLabel');
+
+      // Load YouTube IFrame API
+      var tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      var firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+      // Hàm được YouTube API gọi tự động khi sẵn sàng
+      window.onYouTubeIframeAPIReady = function () {
+        player = new YT.Player('youtube-audio-player', {
+          height: '1',
+          width: '1',
+          videoId: '_NCJe8VB_b4',
+          playerVars: {
+            'autoplay': 0,
+            'controls': 0,
+            'loop': 1,
+            'playlist': '_NCJe8VB_b4',
+            'modestbranding': 1,
+            'rel': 0,
+            'playsinline': 1,
+            'fs': 0,
+            'disablekb': 1,
+            'iv_load_policy': 3
+          },
+          events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+          }
+        });
+      };
+
+      function onPlayerReady(event) {
+        musicReady = true;
+        try { player.setVolume(65); } catch (e) {}
+        console.log('🎵 Nhạc nền đã sẵn sàng: Your Smile');
+      }
+
+      function onPlayerStateChange(event) {
+        if (event.data === YT.PlayerState.PLAYING) {
+          isPlaying = true;
+          toggleBtn.classList.add('playing');
+          musicLabel.textContent = 'Tắt nhạc';
+        } else if (event.data === YT.PlayerState.PAUSED ||
+                   event.data === YT.PlayerState.ENDED) {
+          isPlaying = false;
+          toggleBtn.classList.remove('playing');
+          musicLabel.textContent = 'Bật nhạc';
+        }
+      }
+
+      toggleBtn.addEventListener('click', function () {
+        if (!musicReady || !player) {
+          musicLabel.textContent = 'Đang tải...';
+          return;
+        }
+
+        if (isPlaying) {
+          player.pauseVideo();
+        } else {
+          player.playVideo();
+        }
+      });
+    })();
   </script>
 
 </body>
